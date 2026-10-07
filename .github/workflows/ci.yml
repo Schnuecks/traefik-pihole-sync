@@ -1,16 +1,32 @@
 name: CI
 
+# Lint and tests on every push and pull request. The Docker image is built for all
+# platforms on pull requests and pushes to main, but only as a test (not uploaded), so a
+# failure on one platform shows up before a release. Trivy scans the finished image for
+# known vulnerabilities.
+# The image is only uploaded for a version tag (v1.2.3); the GitHub release is created
+# from the matching CHANGELOG section, and only the last five releases are kept in the
+# package (KEEP_VERSIONS), older ones are deleted.
+
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
   contents: read
 
+env:
+  PLATFORMS: linux/amd64,linux/arm64   # PC/server, Raspberry Pi 4/5 and NAS
+  # Package versions kept on cleanup: per release 1 index + 1 image per platform
+  # (2 platforms = 3 versions), so 5 releases = 15. Otherwise the platform images of older
+  # releases would be deleted and those versions could no longer be installed.
+  KEEP_VERSIONS: 15
+
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # pinned, so a change of ubuntu-latest changes nothing unexpectedly
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -26,28 +42,110 @@ jobs:
       - run: ruff format --check .
       - run: pytest -q
 
-  docker:
-    runs-on: ubuntu-latest
+  image:
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v7
+      - id: release
+        run: echo "push=${{ startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
+      - name: Check version matches tag
+        if: steps.release.outputs.push == 'true'
+        run: |
+          version=$(python3 -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('traefik_pihole_sync/__init__.py').read()).group(1))")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match __version__ $version" >&2
+            exit 1
+          fi
+      - uses: docker/setup-qemu-action@v4
+        if: contains(env.PLATFORMS, 'arm')
       - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        if: steps.release.outputs.push == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ steps.release.outputs.push }}
       - uses: docker/build-push-action@v7
         with:
           context: .
-          push: false
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ steps.release.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false   # no extra manifests, saves storage
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Load the amd64 image from the cache for the smoke test and the scan
+      # (the arm64 packages are the same)
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
           load: true
-          tags: traefik-pihole-sync:ci
+          tags: traefik-pihole-sync:scan
+          provenance: false
+          sbom: false
+          cache-from: type=gha
       - name: Smoke test
         run: |
-          docker run --rm traefik-pihole-sync:ci --version
-          docker run --rm --entrypoint id traefik-pihole-sync:ci -u | grep -qx 10001
+          docker run --rm traefik-pihole-sync:scan --version
+          docker run --rm --entrypoint id traefik-pihole-sync:scan -u | grep -qx 10001
+      # Overview of critical and high vulnerabilities that have a fix …
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: traefik-pihole-sync:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
+      # … only critical ones fail the job; "high" in the base image should not block a
+      # release until Debian has caught up (Dependabot then proposes the new base image)
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: traefik-pihole-sync:scan
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
 
-  # Merges Dependabot pull requests for patch and minor updates once all checks above
-  # have passed. Major updates stay open for a manual review.
+  release:
+    # Creates the GitHub release from the matching CHANGELOG section
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '
+            /^## / { if (found) exit; if ($0 == "## " v) { found=1; next } }
+            found { print }' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" --title "traefik-pihole-sync ${GITHUB_REF_NAME#v}" --notes "${notes:-See CHANGELOG.md}"
+
   dependabot-merge:
-    needs: [test, docker]
+    # Merges Dependabot pull requests for patch and minor updates once all checks above
+    # have passed. Major updates stay open for a manual review.
+    needs: [test, image]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
@@ -60,3 +158,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: gh pr merge --squash "$PR_URL"
+
+  cleanup:
+    # Removes older image versions after a release
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: container
+          min-versions-to-keep: ${{ env.KEEP_VERSIONS }}

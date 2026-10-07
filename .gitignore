@@ -8,3 +8,10 @@ build/
 dist/
 .env
 data/
+*.pem
+
+# Editor / system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
