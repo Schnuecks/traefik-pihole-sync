@@ -1,0 +1,55 @@
+name: Bug report
+description: Something does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please fill in as much as you can;
+        German is fine too. Replace hostnames and addresses you do not want to share.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+      placeholder: |
+        Added a router with Host(`app.example.com`), but no record appears in Pi-hole.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: traefik-pihole-sync version
+      description: Shown in the first log line, or run the image with `--version`.
+      placeholder: e.g. 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: traefik
+    attributes:
+      label: Traefik version
+      placeholder: e.g. 3.5.2
+  - type: input
+    id: pihole
+    attributes:
+      label: Pi-hole version
+      placeholder: e.g. Core 6.2, FTL 6.3
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your environment variables, without passwords.
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: The container log with `LOG_LEVEL=DEBUG` (`docker compose logs traefik-pihole-sync`).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: The router rule in question, how Pi-hole and Traefik are deployed, etc.

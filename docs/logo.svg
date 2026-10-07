@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="traefik-pihole-sync">
+  <!-- traefik-pihole-sync: a list of hostnames inside two sync arrows -->
+  <rect width="64" height="64" rx="14" fill="#1D3B6E"/>
+  <!-- sync arrows -->
+  <g fill="none" stroke="#5FD3BC" stroke-width="4.5" stroke-linecap="round">
+    <path d="M13.2 25.2A20 20 0 0 1 49.3 22"/>
+    <path d="M50.8 38.8A20 20 0 0 1 14.7 42"/>
+  </g>
+  <path d="M51.6 27.4 54.4 18.6 45.4 21.6z" fill="#5FD3BC"/>
+  <path d="M12.4 36.6 9.6 45.4 18.6 42.4z" fill="#5FD3BC"/>
+  <!-- hostnames as DNS records -->
+  <circle cx="23.5" cy="25" r="2" fill="#F2A33A"/>
+  <rect x="27.5" y="23" width="14" height="4" rx="2" fill="#F5F8FC"/>
+  <circle cx="23.5" cy="32" r="2" fill="#F2A33A"/>
+  <rect x="27.5" y="30" width="11" height="4" rx="2" fill="#F5F8FC"/>
+  <circle cx="23.5" cy="39" r="2" fill="#F2A33A"/>
+  <rect x="27.5" y="37" width="13" height="4" rx="2" fill="#F5F8FC"/>
+</svg>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/Schnuecks/traefik-pihole-sync#readme
+    about: Setup, configuration and the Pi-hole and Traefik preparation are described in the README.
+  - name: Security problem
+    url: https://github.com/Schnuecks/traefik-pihole-sync/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately, not as a public issue. How to do that is described here.
