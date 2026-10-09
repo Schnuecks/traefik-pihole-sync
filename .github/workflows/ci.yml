@@ -1,9 +1,11 @@
 name: CI
 
-# Lint and tests on every push and pull request. The Docker image is built for all
-# platforms on pull requests and pushes to main, but only as a test (not uploaded), so a
-# failure on one platform shows up before a release. Trivy scans the finished image for
-# known vulnerabilities.
+# Pull requests and version tags run everything: lint, tests, the Docker image for all
+# platforms, a smoke test and the Trivy scan for known vulnerabilities. A push to main is
+# almost always the squash of a pull request that was just checked, so only lint and tests
+# run there as a safety net; building the image again would be duplicate work.
+# On pull requests the image is only built as a test (not uploaded), so a failure on one
+# platform shows up before a release.
 # The image is only uploaded for a version tag (v1.2.3); the GitHub release is created
 # from the matching CHANGELOG section, and only the last five releases are kept in the
 # package (KEEP_VERSIONS), older ones are deleted.
@@ -44,6 +46,7 @@ jobs:
 
   image:
     needs: test
+    if: github.event_name != 'push' || github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
