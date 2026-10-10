@@ -248,18 +248,10 @@ ruff check . && ruff format --check . && pytest
 ## Unterstützen
 
 traefik-pihole-sync ist kostenlos und bleibt es. Wenn es dir Zeit spart, kannst du mir einen
-Kaffee ausgeben oder etwas per PayPal schicken; das hält das Projekt am Laufen. Danke!
+Kaffee auf Ko-fi ausgeben; das hält das Projekt am Laufen. Danke!
 
 <p>
-  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-10_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 10 €"></a>
-  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-25_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 25 €"></a>
-  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-50_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 50 €"></a>
-</p>
-
-<p>
-  <a href="https://paypal.me/Schnuecks/10EUR"><img src="https://img.shields.io/badge/PayPal-10_%E2%82%AC-00457C?logo=paypal&logoColor=white" alt="PayPal: 10 €"></a>
-  <a href="https://paypal.me/Schnuecks/25EUR"><img src="https://img.shields.io/badge/PayPal-25_%E2%82%AC-00457C?logo=paypal&logoColor=white" alt="PayPal: 25 €"></a>
-  <a href="https://paypal.me/Schnuecks/50EUR"><img src="https://img.shields.io/badge/PayPal-50_%E2%82%AC-00457C?logo=paypal&logoColor=white" alt="PayPal: 50 €"></a>
+  <a href="https://ko-fi.com/schnuecks"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi"></a>
 </p>
 
 ## Rückmeldungen
