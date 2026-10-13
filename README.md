@@ -238,6 +238,13 @@ pip install -r requirements-dev.txt
 ruff check . && ruff format --check . && pytest
 ```
 
+## How it's built
+
+traefik-pihole-sync is developed with the help of an AI coding assistant. I define the features
+and behaviour, review the changes and test them in my own homelab with Traefik and Pi-hole.
+Nothing is released without passing the automated checks: the test suite and a security scan of
+the container image.
+
 ## Support
 
 traefik-pihole-sync is free and stays free. If it saves you time, you can buy me a coffee
