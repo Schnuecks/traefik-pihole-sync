@@ -245,6 +245,13 @@ pip install -r requirements-dev.txt
 ruff check . && ruff format --check . && pytest
 ```
 
+## Wie es entsteht
+
+traefik-pihole-sync entsteht mit Unterstützung eines KI-Assistenten. Funktionen und Verhalten
+lege ich fest, prüfe die Änderungen und teste sie in meinem eigenen Homelab mit Traefik und Pi-
+hole. Veröffentlicht wird nur, was die automatischen Prüfungen besteht: die Tests und ein
+Sicherheitsscan des Container-Images.
+
 ## Unterstützen
 
 traefik-pihole-sync ist kostenlos und bleibt es. Wenn es dir Zeit spart, kannst du mir einen
