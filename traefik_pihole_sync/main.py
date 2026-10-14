@@ -265,7 +265,7 @@ def describe(cfg: Config) -> str:
         parts.append(f"IPv6 {cfg.target_ipv6}")
     if cfg.cname_target:
         parts.append(f"CNAME target {cfg.cname_target}")
-    parts.append(f"domains {', '.join(cfg.domains) if cfg.domains else 'all'}")
+    parts.append(f"domains {'* (all)' if cfg.all_domains else ', '.join(cfg.domains)}")
     parts.append(f"interval {cfg.interval}s")
     if cfg.include_apex:
         parts.append("apex")
@@ -276,6 +276,25 @@ def describe(cfg: Config) -> str:
     if cfg.dry_run:
         parts.append("DRY RUN")
     return "traefik-pihole-sync " + " | ".join(parts)
+
+
+def startup_warnings(cfg: Config) -> list[str]:
+    """Settings that work but weaken safety; logged once at start."""
+    messages = []
+    if cfg.all_domains:
+        messages.append(
+            "DOMAINS=* syncs every hostname from Traefik. A router for a domain you do not own "
+            "(even a typo) overrides that name for your whole network; list your own domains "
+            "in DOMAINS instead"
+        )
+        if cfg.include_apex:
+            messages.append("INCLUDE_APEX has no effect with DOMAINS=*")
+    if cfg.verify_tls is False:
+        messages.append(
+            "PIHOLE_VERIFY_TLS=false: the Pi-hole certificate is not checked, so the password "
+            "and session can be intercepted; use the path of your CA file instead"
+        )
+    return messages
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -300,14 +319,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         cfg = load()
-        if cfg.include_apex and not cfg.domains:
-            log.warning("INCLUDE_APEX has no effect without DOMAINS")
         syncer = Syncer.from_config(cfg)
     except (ConfigError, state.StateError) as e:
         log.error("%s", e)
         return 2
 
     log.info(describe(cfg))
+    for message in startup_warnings(cfg):
+        log.warning(message)
     # docker stop sends SIGTERM: exit through the finally block to log out of Pi-hole.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:

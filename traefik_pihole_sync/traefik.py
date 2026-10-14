@@ -62,7 +62,11 @@ def domain_of(hostname: str, domains: Iterable[str]) -> str | None:
 def filter_hosts(
     hostnames: Iterable[str], domains: tuple[str, ...], include_apex: bool
 ) -> set[str]:
-    """Keep hostnames inside ``domains`` (all if empty) and optionally add each apex."""
+    """Keep hostnames inside ``domains`` and optionally add each apex.
+
+    An empty ``domains`` keeps every hostname; the configuration only allows that with an
+    explicit ``DOMAINS=*``.
+    """
     if not domains:
         return set(hostnames)
     result: set[str] = set()

@@ -39,7 +39,7 @@ Every `SYNC_INTERVAL` seconds the tool
 
 1. reads all routers from the Traefik API (all pages) and extracts the literal hostnames
    from `Host()` (and `HostSNI()`) rules; wildcards, `HostRegexp` and placeholders are skipped,
-2. keeps only hostnames inside `DOMAINS`,
+2. keeps only hostnames inside `DOMAINS` (required, see [Why DOMAINS is required](#why-domains-is-required)),
 3. builds the desired records: `<host> → TARGET_IP` (and `TARGET_IPV6`), or
    `<host> CNAME CNAME_TARGET`,
 4. compares them with each Pi-hole and adds what is missing.
@@ -55,6 +55,14 @@ records you manage yourself:
   If the host still exists but its target changed (e.g. a new `TARGET_IP`), the old
   record is replaced right away.
 - `DRY_RUN=true` logs what would change without writing anything.
+
+### Why DOMAINS is required
+
+Local DNS records in Pi-hole take precedence over public DNS for every device in your
+network. Without a filter, a router with ``Host(`login.example.org`)`` (someone else's domain,
+or simply a typo) would point that name at your proxy for the whole network. So the tool
+only syncs hostnames inside the domains you list in `DOMAINS`. If you really want every
+hostname from Traefik, set `DOMAINS=*`; the tool then logs a warning at every start.
 
 ## Quick start
 
@@ -109,14 +117,19 @@ interface password:
    top right corner of any settings page).
 2. Open **Settings → All settings → Webserver and API** and enable
    `webserver.api.app_sudo`. Without it, sessions opened with an app password may read but
-   not change the configuration.
+   not change the configuration. With it, the app password can change **every** Pi-hole
+   setting, so treat it like an admin password: keep it only in a Docker secret file,
+   never in `compose.yml` or `.env`.
 3. Open **Settings → Web interface / API**, click **Configure app password**, copy the
    generated password and apply it.
 4. Put the password into the secret file (`./secrets/pihole_password.txt` above). It must
    contain only the password.
 
-The password is sent to Pi-hole when the tool logs in. Use an `https://` URL unless Pi-hole
-runs on the same host or in a network you trust. Redirects are never followed, so give
+The password is sent to Pi-hole when the tool logs in, and the session ID with every
+request. Over `http://` both travel unencrypted, which is fine only if the tool reaches
+Pi-hole inside the same Docker network or on the same host. Otherwise use an `https://`
+URL. For a certificate from your own CA, set `PIHOLE_VERIFY_TLS` to the path of the CA file
+(mounted into the container) rather than to `false`. Redirects are never followed, so give
 the final address in `PIHOLE_URL`.
 
 If your Pi-hole has no password at all, leave `PIHOLE_PASSWORD`/`PIHOLE_PASSWORD_FILE`
@@ -147,6 +160,40 @@ services:
 router, you can point `TRAEFIK_API_URL` at it instead, as long as the URL can be reached
 without interactive login.
 
+Keep in mind that the API shows Traefik's complete configuration, including middlewares
+and backend addresses, to every container that can reach port 8080. With
+`--api.insecure=true` that is every container in the `proxy` network. To limit it, serve
+the API on its own entrypoint and allow only a small network that just Traefik and this
+tool share:
+
+```yaml
+services:
+  traefik:
+    command:
+      - --api=true                                # no --api.insecure
+      - --entrypoints.traefikapi.address=:8080
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.entrypoints=traefikapi
+      - traefik.http.routers.api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.middlewares=api-allow
+      - traefik.http.middlewares.api-allow.ipallowlist.sourcerange=172.31.250.0/29
+    networks:
+      - proxy
+      - traefik-api
+
+  traefik-pihole-sync:
+    networks:
+      - traefik-api
+
+networks:
+  traefik-api:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/29
+```
+
 ## Configuration
 
 | Variable | Default | Description |
@@ -161,7 +208,7 @@ without interactive login.
 | `TARGET_IP` | – | IPv4 address for A records. Required in A mode unless `TARGET_IPV6` is set |
 | `TARGET_IPV6` | – | IPv6 address; adds AAAA records |
 | `CNAME_TARGET` | – | CNAME target (required with `RECORD_TYPE=CNAME`) |
-| `DOMAINS` | – (all) | Comma-separated domains; only hostnames inside them are synced |
+| `DOMAINS` | – (required) | Comma-separated domains; only hostnames inside them are synced. `*` syncs every hostname (not recommended, see above) |
 | `INCLUDE_APEX` | `false` | Also create a record for each domain in `DOMAINS` that has at least one hostname |
 | `SYNC_INTERVAL` | `60` | Seconds between sync cycles |
 | `DELETE_THRESHOLD` | `3` | Cycles a host must be missing before its record is deleted |
@@ -225,10 +272,13 @@ The old file is left in place. The old variable names `ALLOWED_ZONE`,
 
 Differences to watch out for:
 
+- **2.0.0:** `DOMAINS` (or the old `ALLOWED_ZONE`) is required. Without it the tool stops
+  with an error. Set it to your own domains, or to `*` to keep the old "all hostnames"
+  behaviour.
 - `INCLUDE_APEX` now defaults to `false`. Set it to `true` if you relied on it.
 - The container no longer runs as root. Fix the ownership of the data directory (see above).
 - TLS certificates are verified. For a self-signed Pi-hole certificate set
-  `PIHOLE_VERIFY_TLS` to your CA file or to `false`.
+  `PIHOLE_VERIFY_TLS` to your CA file (or, not recommended, to `false`).
 
 ## Development
 

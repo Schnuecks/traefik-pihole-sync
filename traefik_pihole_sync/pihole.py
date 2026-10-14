@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
+import warnings
 from urllib.parse import quote
 
 import requests
-import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 
 from .records import AAAA, CNAME, A, Record
 
@@ -67,8 +68,6 @@ class PiholeClient:
         self.sid: str | None = None
         self.session = session or requests.Session()
         self.session.verify = verify_tls
-        if verify_tls is False:
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def __repr__(self) -> str:
         return f"PiholeClient({self.base_url!r})"
@@ -82,9 +81,14 @@ class PiholeClient:
             try:
                 # Never follow redirects: they would carry the session ID (and, for the
                 # login, the password) to whatever address the server names.
-                resp = self.session.request(
-                    method, url, timeout=self.timeout, allow_redirects=False, **kwargs
-                )
+                with warnings.catch_warnings():
+                    # With PIHOLE_VERIFY_TLS=false the start-up log already warns once;
+                    # silence urllib3 only for these requests, not for the whole process.
+                    if self.session.verify is False:
+                        warnings.simplefilter("ignore", InsecureRequestWarning)
+                    resp = self.session.request(
+                        method, url, timeout=self.timeout, allow_redirects=False, **kwargs
+                    )
             except requests.RequestException as e:
                 last_error = e
                 log.debug(

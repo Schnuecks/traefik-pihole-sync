@@ -57,6 +57,7 @@ def make(tmp_path, hosts, piholes=None, **env):
     environment = {
         "PIHOLE_URL": "http://p1",
         "TARGET_IP": IP,
+        "DOMAINS": "example.com",
         "STATE_FILE": str(tmp_path / "state.json"),
         "WRITE_DELAY": "0",
         **env,
@@ -200,6 +201,7 @@ def test_migration_then_sync(tmp_path):
         {
             "PIHOLE_URL": "http://p1",
             "TARGET_IP": IP,
+            "DOMAINS": "example.com",
             "STATE_FILE": str(tmp_path / "state.json"),
             "DELETE_THRESHOLD": "1",
             "WRITE_DELAY": "0",
@@ -230,3 +232,27 @@ def test_healthcheck(tmp_path):
     old = time.time() - 120
     os.utime(health, (old, old))
     assert main.healthcheck(env) == 1
+
+
+def test_foreign_domain_is_ignored(tmp_path):
+    syncer, _, [ph] = make(tmp_path, {"a.example.com", "login.example.org"})
+    syncer.run_once()
+    assert {r.name for r in ph.records} == {"a.example.com"}
+
+
+def test_star_syncs_everything(tmp_path):
+    syncer, _, [ph] = make(tmp_path, {"a.example.com", "login.example.org"}, DOMAINS="*")
+    syncer.run_once()
+    assert {r.name for r in ph.records} == {"a.example.com", "login.example.org"}
+
+
+def test_startup_warnings(tmp_path):
+    assert main.startup_warnings(load({**BASE_ENV, "DOMAINS": "example.com"})) == []
+    star = main.startup_warnings(load({**BASE_ENV, "DOMAINS": "*", "INCLUDE_APEX": "true"}))
+    assert any("DOMAINS=*" in m for m in star)
+    assert any("INCLUDE_APEX" in m for m in star)
+    insecure = load({**BASE_ENV, "DOMAINS": "example.com", "PIHOLE_VERIFY_TLS": "false"})
+    assert any("PIHOLE_VERIFY_TLS=false" in m for m in main.startup_warnings(insecure))
+
+
+BASE_ENV = {"PIHOLE_URL": "http://p1", "TARGET_IP": IP}

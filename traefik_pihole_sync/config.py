@@ -36,6 +36,8 @@ class Config:
     target_ipv6: str | None = None
     cname_target: str | None = None
     domains: tuple[str, ...] = ()
+    # DOMAINS=*: sync every hostname, explicitly requested
+    all_domains: bool = False
     include_apex: bool = False
     tcp_routers: bool = False
     verify_tls: bool | str = True
@@ -182,8 +184,19 @@ def load(env: Mapping[str, str] | None = None) -> Config:
     if record_type == CNAME and not cname_target:
         raise ConfigError("RECORD_TYPE=CNAME needs CNAME_TARGET")
 
+    # Local Pi-hole records override public DNS for the whole network, so a router rule for
+    # someone else's domain would hijack it. Syncing everything must therefore be asked for.
     domains_raw = env.get("DOMAINS") or env.get("ALLOWED_ZONE") or ""
-    domains = tuple(sorted({d.lower().strip(".") for d in parse_list(domains_raw) if d.strip(".")}))
+    domain_list = parse_list(domains_raw)
+    all_domains = "*" in domain_list
+    if all_domains and len(domain_list) > 1:
+        raise ConfigError("DOMAINS=* cannot be combined with other domains")
+    domains = tuple(sorted({d.lower().strip(".") for d in domain_list if d.strip(".*")}))
+    if not domains and not all_domains:
+        raise ConfigError(
+            "DOMAINS is required: list the domains to sync (e.g. DOMAINS=example.com), "
+            "or set DOMAINS=* to sync every hostname from Traefik (not recommended)"
+        )
 
     interval = parse_int("SYNC_INTERVAL", env.get("SYNC_INTERVAL"), 60, minimum=1)
     default_health_age = max(300, 3 * interval)
@@ -196,6 +209,7 @@ def load(env: Mapping[str, str] | None = None) -> Config:
         target_ipv6=target_ipv6,
         cname_target=cname_target,
         domains=domains,
+        all_domains=all_domains,
         include_apex=parse_bool("INCLUDE_APEX", env.get("INCLUDE_APEX"), False),
         tcp_routers=parse_bool("TRAEFIK_TCP_ROUTERS", env.get("TRAEFIK_TCP_ROUTERS"), False),
         verify_tls=parse_verify_tls(env.get("PIHOLE_VERIFY_TLS")),
