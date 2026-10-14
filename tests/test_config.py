@@ -2,7 +2,7 @@ import pytest
 
 from traefik_pihole_sync.config import ConfigError, load
 
-BASE = {"PIHOLE_URL": "http://pihole", "TARGET_IP": "10.0.0.1"}
+BASE = {"PIHOLE_URL": "http://pihole", "TARGET_IP": "10.0.0.1", "DOMAINS": "example.com"}
 
 
 def env(**kw):
@@ -14,7 +14,8 @@ def test_defaults():
     assert cfg.record_type == "A"
     assert cfg.verify_tls is True
     assert cfg.include_apex is False
-    assert cfg.domains == ()
+    assert cfg.domains == ("example.com",)
+    assert cfg.all_domains is False
     assert cfg.piholes[0].url == "http://pihole"
     assert cfg.piholes[0].password == ""
     assert cfg.health_max_age == 300
@@ -28,7 +29,8 @@ def test_pihole_url_required():
 def test_a_mode_needs_an_address():
     with pytest.raises(ConfigError):
         load({"PIHOLE_URL": "http://pihole"})
-    assert load({"PIHOLE_URL": "http://p", "TARGET_IPV6": "fd00::1"}).target_ipv6 == "fd00::1"
+    cfg = load({"PIHOLE_URL": "http://p", "TARGET_IPV6": "fd00::1", "DOMAINS": "example.com"})
+    assert cfg.target_ipv6 == "fd00::1"
 
 
 def test_invalid_ips():
@@ -42,7 +44,12 @@ def test_invalid_ips():
 
 def test_cname_mode():
     cfg = load(
-        {"PIHOLE_URL": "http://p", "RECORD_TYPE": "cname", "CNAME_TARGET": "Proxy.Example.com."}
+        {
+            "PIHOLE_URL": "http://p",
+            "RECORD_TYPE": "cname",
+            "CNAME_TARGET": "Proxy.Example.com.",
+            "DOMAINS": "example.com",
+        }
     )
     assert cfg.record_type == "CNAME"
     assert cfg.cname_target == "proxy.example.com"
@@ -61,7 +68,8 @@ def test_domains_and_legacy_allowed_zone():
         "example.com",
         "lab.example.org",
     )
-    assert load(env(ALLOWED_ZONE="example.com")).domains == ("example.com",)
+    legacy = {"PIHOLE_URL": "http://p", "TARGET_IP": "10.0.0.1", "ALLOWED_ZONE": "example.com"}
+    assert load(legacy).domains == ("example.com",)
     assert load(env(DOMAINS="a.com", ALLOWED_ZONE="b.com")).domains == ("a.com",)
 
 
@@ -145,3 +153,19 @@ def test_bools_and_ints():
         load(env(SYNC_INTERVAL="0"))
     with pytest.raises(ConfigError):
         load(env(DELETE_THRESHOLD="abc"))
+
+
+def test_domains_required():
+    without = {"PIHOLE_URL": "http://p", "TARGET_IP": "10.0.0.1"}
+    with pytest.raises(ConfigError, match="DOMAINS is required"):
+        load(without)
+    with pytest.raises(ConfigError, match="DOMAINS is required"):
+        load({**without, "DOMAINS": " , "})
+
+
+def test_domains_star_means_all():
+    cfg = load(env(DOMAINS="*"))
+    assert cfg.all_domains is True
+    assert cfg.domains == ()
+    with pytest.raises(ConfigError, match="cannot be combined"):
+        load(env(DOMAINS="*,example.com"))

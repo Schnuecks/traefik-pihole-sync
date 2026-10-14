@@ -42,7 +42,7 @@ Alle `SYNC_INTERVAL` Sekunden
 1. liest das Tool alle Router aus der Traefik-API (alle Seiten) und holt die festen
    Hostnamen aus `Host()`- (und `HostSNI()`-)Regeln; Platzhalter, `HostRegexp` und `*`
    werden übersprungen,
-2. behält nur Hostnamen innerhalb von `DOMAINS`,
+2. behält nur Hostnamen innerhalb von `DOMAINS` (Pflicht, siehe [Warum DOMAINS Pflicht ist](#warum-domains-pflicht-ist)),
 3. bildet daraus die gewünschten Einträge: `<host> → TARGET_IP` (und `TARGET_IPV6`) oder
    `<host> CNAME CNAME_TARGET`,
 4. vergleicht sie mit jedem Pi-hole und ergänzt, was fehlt.
@@ -58,6 +58,15 @@ eigenen Einträge:
   Container lässt DNS also nicht flackern. Gibt es den Host noch, aber mit neuem Ziel
   (z. B. neue `TARGET_IP`), wird der alte Eintrag sofort ersetzt.
 - `DRY_RUN=true` protokolliert nur, was sich ändern würde, und schreibt nichts.
+
+### Warum DOMAINS Pflicht ist
+
+Lokale DNS-Einträge in Pi-hole haben für jedes Gerät in deinem Netz Vorrang vor dem
+öffentlichen DNS. Ohne Filter würde ein Router mit ``Host(`login.example.org`)`` (eine
+fremde Domain oder einfach ein Tippfehler) diesen Namen im ganzen Netz auf deinen Proxy
+umbiegen. Deshalb übernimmt das Tool nur Hostnamen innerhalb der Domains, die du in
+`DOMAINS` angibst. Willst du wirklich jeden Hostnamen aus Traefik, setze `DOMAINS=*`; das
+Tool warnt dann bei jedem Start.
 
 ## Schnellstart
 
@@ -113,15 +122,20 @@ deines Passworts für die Weboberfläche:
    oben rechts auf jeder Einstellungsseite).
 2. Öffne **Settings → All settings → Webserver and API** und aktiviere
    `webserver.api.app_sudo`. Ohne diese Option dürfen Sitzungen mit App-Passwort die
-   Konfiguration zwar lesen, aber nicht ändern.
+   Konfiguration zwar lesen, aber nicht ändern. Mit ihr kann das App-Passwort **jede**
+   Einstellung von Pi-hole ändern. Behandle es also wie ein Admin-Passwort: nur in einer
+   Docker-Secret-Datei ablegen, nie in `compose.yml` oder `.env`.
 3. Öffne **Settings → Web interface / API**, klicke auf **Configure app password**,
    kopiere das erzeugte Passwort und übernimm es.
 4. Schreibe das Passwort in die Secret-Datei (oben `./secrets/pihole_password.txt`). Sie
    darf nur das Passwort enthalten.
 
-Das Passwort geht bei der Anmeldung an Pi-hole über das Netz. Nutze eine `https://`-URL, es
-sei denn, Pi-hole läuft auf demselben Host oder in einem Netz, dem du vertraust.
-Weiterleitungen folgt das Tool nie; gib in `PIHOLE_URL` also die endgültige Adresse an.
+Das Passwort geht bei der Anmeldung an Pi-hole über das Netz, die Sitzungs-ID bei jeder
+Anfrage. Über `http://` geht beides unverschlüsselt. Das ist nur in Ordnung, wenn das Tool
+Pi-hole im selben Docker-Netz oder auf demselben Host erreicht. Sonst nutze eine
+`https://`-URL. Bei einem Zertifikat deiner eigenen CA setze `PIHOLE_VERIFY_TLS` auf den
+Pfad der CA-Datei (in den Container eingebunden) statt auf `false`. Weiterleitungen folgt
+das Tool nie; gib in `PIHOLE_URL` also die endgültige Adresse an.
 
 Hat dein Pi-hole gar kein Passwort, lass `PIHOLE_PASSWORD`/`PIHOLE_PASSWORD_FILE` leer.
 Das Tool überspringt dann die Anmeldung.
@@ -151,6 +165,40 @@ services:
 bereit, kannst du `TRAEFIK_API_URL` auch darauf zeigen lassen, solange die URL ohne
 interaktive Anmeldung erreichbar ist.
 
+Bedenke: Die API zeigt Traefiks komplette Konfiguration samt Middlewares und
+Backend-Adressen jedem Container, der Port 8080 erreicht. Mit `--api.insecure=true` ist das
+jeder Container im Netz `proxy`. Um das einzuschränken, stelle die API über einen eigenen
+Entrypoint bereit und erlaube nur ein kleines Netz, das sich nur Traefik und dieses Tool
+teilen:
+
+```yaml
+services:
+  traefik:
+    command:
+      - --api=true                                # ohne --api.insecure
+      - --entrypoints.traefikapi.address=:8080
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.entrypoints=traefikapi
+      - traefik.http.routers.api.rule=PathPrefix(`/api`)
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.middlewares=api-allow
+      - traefik.http.middlewares.api-allow.ipallowlist.sourcerange=172.31.250.0/29
+    networks:
+      - proxy
+      - traefik-api
+
+  traefik-pihole-sync:
+    networks:
+      - traefik-api
+
+networks:
+  traefik-api:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/29
+```
+
 ## Konfiguration
 
 | Variable | Standard | Beschreibung |
@@ -165,7 +213,7 @@ interaktive Anmeldung erreichbar ist.
 | `TARGET_IP` | – | IPv4-Adresse für A-Einträge. Im A-Modus Pflicht, wenn `TARGET_IPV6` fehlt |
 | `TARGET_IPV6` | – | IPv6-Adresse; legt zusätzlich AAAA-Einträge an |
 | `CNAME_TARGET` | – | CNAME-Ziel (Pflicht bei `RECORD_TYPE=CNAME`) |
-| `DOMAINS` | – (alle) | Domains, durch Komma getrennt; nur Hostnamen darin werden übernommen |
+| `DOMAINS` | – (Pflicht) | Domains, durch Komma getrennt; nur Hostnamen darin werden übernommen. `*` übernimmt jeden Hostnamen (nicht empfohlen, siehe oben) |
 | `INCLUDE_APEX` | `false` | Zusätzlich einen Eintrag für jede Domain aus `DOMAINS`, die mindestens einen Hostnamen hat |
 | `SYNC_INTERVAL` | `60` | Sekunden zwischen zwei Durchläufen |
 | `DELETE_THRESHOLD` | `3` | So viele Durchläufe muss ein Host fehlen, bevor sein Eintrag gelöscht wird |
@@ -231,11 +279,14 @@ Datei automatisch übernommen. Ihre Hostnamen werden zu A-Einträgen mit `TARGET
 
 Darauf solltest du achten:
 
+- **2.0.0:** `DOMAINS` (oder das alte `ALLOWED_ZONE`) ist Pflicht. Ohne startet das Tool
+  mit einer Fehlermeldung nicht. Setze es auf deine eigenen Domains oder auf `*`, um das
+  alte Verhalten „alle Hostnamen“ zu behalten.
 - `INCLUDE_APEX` ist jetzt standardmäßig `false`. Setze es auf `true`, wenn du es brauchst.
 - Der Container läuft nicht mehr als root. Passe den Besitzer des Datenverzeichnisses an
   (siehe oben).
 - TLS-Zertifikate werden geprüft. Bei einem selbstsignierten Zertifikat von Pi-hole setze
-  `PIHOLE_VERIFY_TLS` auf deine CA-Datei oder auf `false`.
+  `PIHOLE_VERIFY_TLS` auf deine CA-Datei (oder, nicht empfohlen, auf `false`).
 
 ## Entwicklung
 

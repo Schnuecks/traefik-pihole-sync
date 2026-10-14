@@ -202,3 +202,16 @@ def test_retry_after_is_capped(monkeypatch):
     responses.put(f"{URL}/api/config/dns/hosts/10.0.0.1%20a.example.com", status=201)
     client().add_record(Record(A, "a.example.com", "10.0.0.1"))
     assert waits == [300.0]
+
+
+@responses.activate
+def test_insecure_warning_stays_local():
+    import warnings
+
+    from urllib3.exceptions import InsecureRequestWarning
+
+    responses.get(f"{URL}/api/config/dns/hosts", json=dns("hosts", []))
+    responses.get(f"{URL}/api/config/dns/cnameRecords", json=dns("cnameRecords", []))
+    client(password="", verify_tls=False).get_records()
+    # The process-wide filter must not be changed by the client.
+    assert not any(f[2] is InsecureRequestWarning and f[0] == "ignore" for f in warnings.filters)

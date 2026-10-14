@@ -4,6 +4,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Changed (breaking)
+- `DOMAINS` is required. Local Pi-hole records override public DNS for the whole network, so
+  syncing every hostname could hijack domains you do not own (for example through a typo in
+  a router rule). Set your own domains, or `DOMAINS=*` to keep syncing every hostname; the
+  tool then warns at every start. `ALLOWED_ZONE` still works as before.
+
+### Security
+- `PIHOLE_VERIFY_TLS=false` no longer silences urllib3 warnings for the whole process; the
+  tool logs one warning at start instead.
+- GitHub Actions are pinned to commit SHAs and the base image to a digest; Dependabot keeps
+  them up to date.
+
+### Documentation
+- README: when `http://` to Pi-hole is acceptable, the app password with `app_sudo` is
+  effectively an admin password, and how to limit who can read the Traefik API.
+
 ## 1.0.0
 
 First stable release.
