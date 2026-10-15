@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Tests
+- Property-based tests with random input (Hypothesis) for the rule parser, the Pi-hole
+  entry parsers, the domain filter and the rule that records the tool did not create are
+  never touched.
+
 ## 2.0.0
 
 ### Changed (breaking)
