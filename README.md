@@ -328,6 +328,12 @@ to share. See also [CONTRIBUTING](CONTRIBUTING.md) and [SECURITY](SECURITY.md).
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
+**What to expect:** traefik-pihole-sync is a hobby project that I run in my own homelab. I
+look at issues and pull requests as time allows, without a guaranteed response time. The
+tool deliberately does one thing: keep Pi-hole's local DNS records in sync with Traefik,
+safely. Ideas that make that better are very welcome; features that would turn it into
+something bigger may be declined to keep it small and easy to trust.
+
 ## License
 
 Copyright (c) 2026 Schnuecks. Released under the [MIT License](LICENSE).
