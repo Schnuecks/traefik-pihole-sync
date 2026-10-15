@@ -296,6 +296,23 @@ pip install -r requirements-dev.txt
 ruff check . && ruff format --check . && pytest
 ```
 
+## Sicherheit
+
+Lokale DNS-Einträge haben im ganzen Netz Vorrang vor dem öffentlichen DNS, deshalb ist das Tool
+streng bei dem, was es schreibt:
+
+- **Nur deine Domains:** `DOMAINS` ist Pflicht; Hostnamen außerhalb davon werden nie eingetragen.
+- **Nur eigene Einträge:** Einträge, die es nicht selbst angelegt hat, ändert oder löscht es nie,
+  gelöscht wird erst nach mehreren Durchläufen, und ein Probelauf zeigt vorher jede Änderung.
+- **Zugangsdaten:** Pi-hole-Passwort aus einem Docker-Secret, wird nie über eine Weiterleitung
+  mitgeschickt.
+- **Bei jeder Änderung geprüft:** Tests, Trivy-Scan des Images, Dependabot; GitHub Actions auf
+  Commit-Hashes und das Basis-Image auf einen Digest festgelegt.
+- **Überprüft:** Ein KI-gestützter Sicherheits-Review hat zu Version 2.0.0 geführt; die Parser
+  und die Regel „fremde Einträge nie anfassen“ wurden zusätzlich mit Zufallseingaben gefuzzt.
+
+Sicherheitslücken bitte vertraulich melden, siehe [SECURITY.md](SECURITY.md).
+
 ## Wie es entsteht
 
 traefik-pihole-sync entsteht mit Unterstützung eines KI-Assistenten. Funktionen und Verhalten
