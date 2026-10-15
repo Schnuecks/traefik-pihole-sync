@@ -287,6 +287,21 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 ruff check . && ruff format --check . && pytest
 ```
+## Security
+
+Local DNS records override public DNS for your whole network, so the tool is strict about what
+it writes:
+
+- **Only your domains:** `DOMAINS` is required; hostnames outside it are never written.
+- **Only its own records:** records it did not create are never changed or deleted, deletion
+  waits several cycles, and a dry-run mode shows every change first.
+- **Credentials:** Pi-hole password from a Docker secret, never sent along a redirect.
+- **Checked on every change:** test suite, Trivy scan of the image, Dependabot; GitHub Actions
+  pinned to commit hashes, base image pinned to a digest.
+- **Reviewed:** an AI-assisted security review led to version 2.0.0; the parsers and the
+  “never touch foreign records” rule were additionally fuzz-tested with random input.
+
+Please report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 
 ## How it's built
 
