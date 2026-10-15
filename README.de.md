@@ -339,6 +339,13 @@ teilen möchtest, kannst du vorher ersetzen. Siehe auch [CONTRIBUTING](CONTRIBUT
 
 Was sich in einer Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) (auf Englisch).
 
+**Was du erwarten kannst:** traefik-pihole-sync ist ein Hobby-Projekt, das ich in meinem
+eigenen Homelab nutze. Issues und Pull Requests schaue ich mir an, wenn ich Zeit habe, ohne
+feste Antwortzeit. Das Tool macht bewusst nur eine Sache: die lokalen DNS-Einträge von
+Pi-hole sicher mit Traefik abgleichen. Ideen, die das besser machen, sind sehr willkommen;
+Funktionen, die daraus etwas viel Größeres machen würden, lehne ich eventuell ab, damit es
+klein und vertrauenswürdig bleibt.
+
 ## Lizenz
 
 Copyright (c) 2026 Schnuecks. Veröffentlicht unter der [MIT-Lizenz](LICENSE).
