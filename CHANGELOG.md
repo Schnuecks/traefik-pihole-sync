@@ -6,7 +6,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Changed
+- The Docker image now runs on Python 3.14 (was 3.12).
+
 ### Tests
+- CI also runs the test suite on Python 3.14, the version in the Docker image.
 - Property-based tests with random input (Hypothesis) for the rule parser, the Pi-hole
   entry parsers, the domain filter and the rule that records the tool did not create are
   never touched.
