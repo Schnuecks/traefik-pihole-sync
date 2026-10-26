@@ -1,5 +1,5 @@
 -r requirements.txt
-hypothesis==6.169.3
+hypothesis==6.170.2
 pytest==9.1.1
 responses==0.26.3
-ruff==0.17.0
+ruff==0.17.1
