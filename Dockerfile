@@ -7,7 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
+# pip is only needed at build time; removing it keeps its bundled packages out of the image.
 RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall --yes pip \
     && useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
     && mkdir -p /data \
     && chown app /data

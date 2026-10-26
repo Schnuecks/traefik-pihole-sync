@@ -4,6 +4,15 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## 2.0.2
+
+### Security
+- certifi 2026.10.19 removes the emSign root certificates, which are no longer trusted
+  (GHSA-6q48-6c7w-9gw2). The tool uses certifi to check the HTTPS certificates of Traefik
+  and Pi-hole.
+- The Docker image no longer contains pip. It is only needed to build the image, and the
+  copy of certifi bundled with pip was affected as well.
+
 ## 2.0.1
 
 ### Changed
