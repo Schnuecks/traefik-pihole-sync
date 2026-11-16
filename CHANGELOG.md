@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Security
+- The image now installs the Debian security updates that the base image does not contain yet. This fixes two vulnerabilities in zlib (CVE-2026-76844, CVE-2026-85091) and one in apt (CVE-2026-109518) that the weekly image scan reported.
+
+### Changed
+- The image is based on Python 3.15. The tests also run on Python 3.15.
+
 ## 2.0.2
 
 ### Security
